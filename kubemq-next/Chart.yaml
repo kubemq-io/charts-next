@@ -1,0 +1,10 @@
+apiVersion: v2
+name: kubemq-next
+description: KubeMQ (next line) — operator, CRDs and an optional KubeMQ cluster in one chart
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+maintainers:
+  - name: KubeMQ
+    email: info@kubemq.io
+    url: https://kubemq.io

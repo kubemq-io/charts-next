@@ -1,0 +1,47 @@
+{{- if .Values.operator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubemq-operator-next
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubemq-operator-next
+  template:
+    metadata:
+      labels:
+        app: kubemq-operator-next
+    spec:
+      serviceAccountName: kubemq-operator-next
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kubemq-operator
+          image: {{ .Values.operator.image }}
+          command:
+            - kubemq-operator
+          imagePullPolicy: {{ .Values.operator.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: RELATED_IMAGE_KUBEMQ_CLUSTER
+              value: {{ .Values.operator.serverImage | quote }}
+            - name: CONNECTOR_TARGETS_IMAGE
+              value: {{ .Values.operator.connectorImages.targets | quote }}
+            - name: CONNECTOR_SOURCES_IMAGE
+              value: {{ .Values.operator.connectorImages.sources | quote }}
+            - name: CONNECTOR_BRIDGES_IMAGE
+              value: {{ .Values.operator.connectorImages.bridges | quote }}
+{{- end }}

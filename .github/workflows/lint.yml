@@ -1,0 +1,20 @@
+name: lint
+on:
+  pull_request:
+  push:
+    branches: [main]
+# No CRD check runs here: kubemq-next/crds is a copy written by the operator repo's
+# `task crds:sync`, and the operator's own test suite fails when the copy drifts.
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint kubemq-next --set key=lint
+      - run: helm template kubemq-next kubemq-next --set key=lint > /dev/null
+      - name: cluster.enabled=false renders no cluster
+        run: |
+          if helm template kubemq-next kubemq-next --set key=lint --set cluster.enabled=false | grep -q 'kind: KubemqCluster'; then
+            echo "cluster.enabled=false still renders a KubemqCluster" >&2; exit 1
+          fi
