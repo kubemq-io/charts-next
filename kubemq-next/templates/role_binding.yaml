@@ -1,0 +1,48 @@
+{{- if .Values.operator.enabled }}
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "kubemq.crbName" . }}
+subjects:
+  - kind: ServiceAccount
+    name: kubemq-operator-next
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: kubemq-operator-next
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubemq-cluster-next-role
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups:
+      - security.openshift.io
+    resources:
+      - securitycontextconstraints
+    verbs:
+      - use
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+    resourceNames:
+      - privileged
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name:  kubemq-cluster-next-rb
+subjects:
+  - kind: ServiceAccount
+    name: kubemq-cluster-next
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: kubemq-cluster-next-role
+  apiGroup: rbac.authorization.k8s.io

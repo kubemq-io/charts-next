@@ -1,0 +1,49 @@
+# License. A KubeMQ server does not start without one. Set the key here, or keep it out of
+# the KubemqCluster object and Helm's saved values by referencing an existing Secret:
+#   kubectl create secret generic my-kubemq-license --from-literal=key=<your-license-key>
+key:
+# keySecretRef: my-kubemq-license
+# keySecretKey: key
+# licenseSecretRef: my-kubemq-license
+# licenseSecretKey: license
+
+# The KubeMQ cluster. When enabled the chart renders one next.kubemq.io/v1 KubemqCluster named
+# after the release. Every other top-level value in this file that is not listed under
+# "chart-only keys" below is passed through verbatim into the KubemqCluster spec
+# (replicas, image, volume, store, grpc, rest, kafka, ...).
+#
+# DATA WARNING: setting enabled=false on a live release, or running `helm uninstall`, deletes
+# the KubemqCluster and its pods. The PersistentVolumeClaims are kept and must be deleted by hand.
+cluster:
+  enabled: true
+
+# Health / liveness probe. Enabling it also binds the management API to 0.0.0.0 so the
+# dashboard is reachable through the Service and `kubectl port-forward`.
+health:
+  enabled: true
+
+# The operator. Set enabled=false to skip the operator and its RBAC when a next-line
+# operator is already installed in this namespace by another release.
+operator:
+  enabled: true
+  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:latest
+  pullPolicy: Always
+  # Default server image for clusters that do not set image.image.
+  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:latest
+  # Connector images ship in next v1.1. Until then set spec.image on every KubemqConnector.
+  connectorImages:
+    targets: europe-docker.pkg.dev/kubemq/images/kubemq-targets-next:latest
+    sources: europe-docker.pkg.dev/kubemq/images/kubemq-sources-next:latest
+    bridges: europe-docker.pkg.dev/kubemq/images/kubemq-bridges-next:latest
+
+# Pre-delete hook: on `helm uninstall` it deletes the KubemqCluster while the operator is still
+# running, so the operator can release its finalizer before Helm removes the operator. The image
+# must be pullable from this cluster or `helm uninstall` blocks. Set enabled=false to opt out.
+preDelete:
+  enabled: true
+  image: registry.k8s.io/kubectl:v1.31.0
+
+imagePullSecrets: []
+
+# chart-only keys (never passed into the KubemqCluster spec):
+#   key, license, cluster, operator, preDelete, imagePullSecrets, nameOverride, fullnameOverride
