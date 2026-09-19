@@ -131,9 +131,34 @@ spec:
                       format: int32
                       minimum: 1
                       type: integer
+                    defaultUserSecretRef:
+                      properties:
+                        name:
+                          minLength: 1
+                          type: string
+                        passwordKey:
+                          minLength: 1
+                          type: string
+                        usernameKey:
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
                     defaultVhost:
                       minLength: 1
                       type: string
+                    definitionsSecretRef:
+                      properties:
+                        key:
+                          minLength: 1
+                          type: string
+                        name:
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
                     enabled:
                       type: boolean
                     expose:
@@ -599,6 +624,20 @@ spec:
                       maximum: 65535
                       minimum: 1
                       type: integer
+                    defaultUserSecretRef:
+                      properties:
+                        name:
+                          minLength: 1
+                          type: string
+                        passwordKey:
+                          minLength: 1
+                          type: string
+                        usernameKey:
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
                     enabled:
                       type: boolean
                     expose:
@@ -637,6 +676,17 @@ spec:
                       type: integer
                     tlsPort:
                       type: string
+                    usersSecretRef:
+                      properties:
+                        key:
+                          minLength: 1
+                          type: string
+                        name:
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
                   type: object
                 license:
                   type: string
