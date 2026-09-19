@@ -44,8 +44,13 @@ Every top-level value that is not a chart-only key (`key`, `license`, `cluster`,
 
 ```bash
 helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set key=<key> \
-  --set replicas=3 --set volume.size=50Gi --set kafka.enabled=true
+  --set replicas=3 --set volume.size=50Gi --set mqtt.enabled=true
 ```
+
+Kafka (ports 9092/9093) and RabbitMQ / AMQP 0-9-1 (5672/5671) are on by default — a fresh
+install serves both with no connector values. Turn one off with `--set kafka.enabled=false` or
+`--set amqp.enabled=false`. The other wire-protocol connectors (`mqtt`, `amqp10`, `stomp`, `aws`,
+`gcp`) are opt-in via `<name>.enabled=true`.
 
 Operator only, no cluster: `--set cluster.enabled=false`, then apply your own `next.kubemq.io/v1`
 `KubemqCluster` manifests.
