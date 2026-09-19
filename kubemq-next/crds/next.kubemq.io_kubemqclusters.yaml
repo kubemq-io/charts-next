@@ -155,6 +155,16 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    management:
+                      properties:
+                        enabled:
+                          type: boolean
+                        port:
+                          format: int32
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                      type: object
                     maxBodySize:
                       format: int32
                       minimum: 1
@@ -181,6 +191,13 @@ spec:
                       enum:
                         - None
                         - ClientIP
+                      type: string
+                    sslCertLogin:
+                      type: boolean
+                    sslCertLoginFrom:
+                      enum:
+                      - distinguished_name
+                      - common_name
                       type: string
                     tlsNodePort:
                       format: int32
