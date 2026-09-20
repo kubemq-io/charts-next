@@ -33,6 +33,14 @@ licenseFile:
 cluster:
   enabled: true
 
+# Persistent storage for each server node. The next storage engine keeps its data and the cached
+# license lease on this volume. Without one, every pod restart starts from an empty store: a rolling
+# update of a multi-node cluster restarts each node empty and the cluster may not re-form, and each
+# restart needs a fresh license activation. Size it for your retention.
+# To run without a volume (throwaway test only): --set volume=null
+volume:
+  size: 5Gi
+
 # Health / liveness probe. Enabling it also binds the management API to 0.0.0.0 so the
 # dashboard is reachable through the Service and `kubectl port-forward`.
 health:

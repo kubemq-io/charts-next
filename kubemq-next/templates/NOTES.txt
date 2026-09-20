@@ -1,0 +1,40 @@
+{{- $name := include "kubemq.fullname" . -}}
+{{- $ns := .Release.Namespace -}}
+KubeMQ operator installed in namespace {{ $ns }}.
+{{ if .Values.cluster.enabled }}
+Cluster "{{ $name }}" was requested. Watch it come up:
+
+  kubectl get pods -n {{ $ns }} -w
+  kubectl get kubemqclusters.next.kubemq.io -n {{ $ns }}
+
+If no server pod appears, the STATUS column of the second command says why.
+
+Kafka clients inside this Kubernetes cluster connect with:
+
+  bootstrap.servers={{ $name }}-kafka.{{ $ns }}:9092
+
+Quick test from a throwaway pod:
+
+  kubectl run kcat -n {{ $ns }} --rm -it --restart=Never --image=edenhill/kcat:1.7.1 --command -- \
+    sh -c 'echo hello | kcat -b {{ $name }}-kafka.{{ $ns }}:9092 -t smoke -P && kcat -b {{ $name }}-kafka.{{ $ns }}:9092 -C -t smoke -o beginning -e'
+
+Dashboard:
+
+  kubectl port-forward -n {{ $ns }} svc/{{ $name }}-api 8080:8080
+  open http://localhost:8080
+
+Note: `kubectl port-forward` to the Kafka service does NOT work for Kafka clients. After the
+first answer the client is sent to each pod's in-cluster address, which your machine cannot
+resolve. Run Kafka clients inside the cluster, or expose Kafka (see the chart README).
+{{- if not .Values.volume }}
+
+WARNING: no volume is set. All data is lost whenever a pod restarts.
+{{- end }}
+
+`helm uninstall` keeps the PersistentVolumeClaims. A later install with a different shape
+(node count, storage engine) will not start until you delete them:
+
+  kubectl delete pvc -n {{ $ns }} -l app={{ $name }}
+{{ else }}
+No cluster was requested (cluster.enabled=false). Create a KubemqCluster object to start one.
+{{ end }}
