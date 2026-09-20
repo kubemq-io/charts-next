@@ -8,7 +8,7 @@ REPO_URL="https://kubemq-io.github.io/charts-next"
 version="$(awk '/^version:/ {print $2}' kubemq-next/Chart.yaml)"
 pkg="docs/kubemq-next-${version}.tgz"
 
-helm lint kubemq-next --set key=lint
+helm lint kubemq-next --set licenseKey=lint
 if [[ -f "$pkg" ]]; then
   echo "refusing to overwrite released package $pkg — bump version in kubemq-next/Chart.yaml" >&2
   exit 1

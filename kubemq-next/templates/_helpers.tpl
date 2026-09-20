@@ -41,3 +41,12 @@ Create the name of the service account to use
 {{- define "kubemq.crbName" -}}
 {{- printf "kubemq-operator-next-%s-crb" .Release.Namespace -}}
 {{- end -}}
+
+{{/* Release-namespace-scoped names for the server's license ClusterRole and its binding:
+     cluster-scoped objects, so two releases in different namespaces must not collide. */}}
+{{- define "kubemq.clusterLicenseRoleName" -}}
+{{- printf "kubemq-cluster-next-%s-license" .Release.Namespace -}}
+{{- end -}}
+{{- define "kubemq.clusterLicenseCrbName" -}}
+{{- printf "kubemq-cluster-next-%s-license-crb" .Release.Namespace -}}
+{{- end -}}

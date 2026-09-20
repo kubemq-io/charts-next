@@ -1,4 +1,21 @@
 {{- if .Values.cluster.enabled }}
+{{- /* Exactly one license source: licenseKey, licenseFile, licenseKeySecretRef, licenseFileSecretRef.
+     The chart 1.x values (key, license, keySecretRef, keySecretKey, licenseSecretRef, licenseSecretKey)
+     are not license sources any more: the CRD schema prunes/ignores unknown spec fields rather than
+     rejecting them, so the render fails here when none of the four new values is set, and the CRD's
+     own CEL rule refuses a spec without exactly one of them. */}}
+{{- $keyRef := .Values.licenseKeySecretRef | default dict }}
+{{- $fileRef := .Values.licenseFileSecretRef | default dict }}
+{{- $sources := list }}
+{{- if .Values.licenseKey }}{{ $sources = append $sources "licenseKey" }}{{ end }}
+{{- if .Values.licenseFile }}{{ $sources = append $sources "licenseFile" }}{{ end }}
+{{- if $keyRef.name }}{{ $sources = append $sources "licenseKeySecretRef" }}{{ end }}
+{{- if $fileRef.name }}{{ $sources = append $sources "licenseFileSecretRef" }}{{ end }}
+{{- if eq (len $sources) 0 }}
+{{- fail "A license is required: set licenseKey or licenseFile, or reference a Secret via licenseKeySecretRef / licenseFileSecretRef" }}
+{{- else if gt (len $sources) 1 }}
+{{- fail (printf "licenseKey, licenseFile, licenseKeySecretRef and licenseFileSecretRef are mutually exclusive: set exactly one (got %s)" (join ", " $sources)) }}
+{{- end }}
 apiVersion: next.kubemq.io/v1
 kind: KubemqCluster
 metadata:
@@ -10,16 +27,25 @@ metadata:
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
 spec:
-  {{- if .Values.key }}
-  key: {{ .Values.key }}
-  {{- else if .Values.license }}
-  license: {{ .Values.license }}
-  {{- else if or .Values.keySecretRef .Values.licenseSecretRef }}
-  {{- /* license sourced from a Secret (keySecretRef/licenseSecretRef); emitted via the passthrough below */}}
-  {{- else }}
-  {{- fail "A license is required: set key or license, or reference a Secret via keySecretRef/licenseSecretRef" }}
+  {{- if .Values.licenseKey }}
+  licenseKey: {{ .Values.licenseKey | quote }}
+  {{- else if .Values.licenseFile }}
+  licenseFile: |-
+    {{- .Values.licenseFile | trim | nindent 4 }}
+  {{- else if $keyRef.name }}
+  licenseKeySecretRef:
+    name: {{ $keyRef.name | quote }}
+    {{- with $keyRef.key }}
+    key: {{ . | quote }}
+    {{- end }}
+  {{- else if $fileRef.name }}
+  licenseFileSecretRef:
+    name: {{ $fileRef.name | quote }}
+    {{- with $fileRef.key }}
+    key: {{ . | quote }}
+    {{- end }}
   {{- end }}
-{{- with (omit .Values "imagePullSecrets" "key" "license" "cluster" "operator" "preDelete" "nameOverride" "fullnameOverride") }}
+{{- with (omit .Values "licenseKey" "licenseFile" "licenseKeySecretRef" "licenseFileSecretRef" "imagePullSecrets" "cluster" "operator" "preDelete" "nameOverride" "fullnameOverride") }}
 {{ toYaml . | indent 2 }}
 {{- end }}
 {{- end }}

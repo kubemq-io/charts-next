@@ -37,7 +37,8 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name:  kubemq-cluster-next-rb
+  name: kubemq-cluster-next-rb
+  namespace: {{ .Release.Namespace }}
 subjects:
   - kind: ServiceAccount
     name: kubemq-cluster-next

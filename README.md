@@ -12,25 +12,84 @@ CRDs, the operator, and (by default) one KubeMQ cluster.
 ```bash
 helm repo add kubemq-next https://kubemq-io.github.io/charts-next
 helm repo update
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --create-namespace --set key=<your-license-key>
+# online license key
+helm install kubemq-next kubemq-next/kubemq-next -n kubemq --create-namespace --set licenseKey=<your-license-key>
+# or an offline, signed license file (armored "-----BEGIN KUBEMQ LICENSE-----" text or a bare compact JWS)
+helm install kubemq-next kubemq-next/kubemq-next -n kubemq --create-namespace --set-file licenseFile=./kubemq.license
 ```
 
-To keep the license key out of the cluster object and out of Helm's saved values, reference a Secret:
+## Licensing
+
+A KubeMQ server does not start without a license. The chart takes exactly **one** of four sources
+(rendering fails when none or more than one is set):
+
+| Value | What it is | Reaches the pod as |
+|-------|------------|--------------------|
+| `licenseKey` | the online license key; the server activates it and keeps a lease | env `KUBEMQ_LICENSE_KEY` |
+| `licenseFile` | an offline signed license file, verified locally, no network needed | env `KUBEMQ_LICENSE_DATA` |
+| `licenseKeySecretRef` | `{name, key}` — an existing Secret holding the key (`key` defaults to `licenseKey`) | env `KUBEMQ_LICENSE_KEY` |
+| `licenseFileSecretRef` | `{name, key}` — an existing Secret holding the file (`key` defaults to `licenseFile`) | env `KUBEMQ_LICENSE_DATA` |
+
+To keep the license out of the `KubemqCluster` object and out of Helm's saved values, reference a Secret:
 
 ```bash
-kubectl -n kubemq create secret generic kubemq-license --from-literal=key=<your-license-key>
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set keySecretRef=kubemq-license
+# key
+kubectl -n kubemq create secret generic my-kubemq-license --from-literal=licenseKey=<your-license-key>
+helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set licenseKeySecretRef.name=my-kubemq-license
+# file
+kubectl -n kubemq create secret generic my-kubemq-license --from-file=licenseFile=./kubemq.license
+helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set licenseFileSecretRef.name=my-kubemq-license
+# a different data key
+helm install … --set licenseFileSecretRef.name=my-kubemq-license --set licenseFileSecretRef.key=lic
 ```
+
+The server enforces the license in every deployment mode; the operator is a convenience
+(offline-file signature check before the StatefulSet is created, replica clamp to the license's
+`max_instances` on first create, and a lease cache in the operator-owned Secret
+`<cluster>-license-cache`).
+
+### Upgrading from chart 1.x (breaking)
+
+The license values were renamed with no compatibility layer. `key`, `license`, `keySecretRef`,
+`keySecretKey`, `licenseSecretRef` and `licenseSecretKey` no longer exist. The CRD schema does not
+reject the old fields — unknown spec fields are **pruned/ignored** by the API server (kubectl's
+strict validation reports them; server-side apply only warns) — so the chart template **fails the
+render** when none of the four new values is set, and the CRD's CEL rule refuses a `KubemqCluster`
+spec without exactly one of them. Rename them in your values before `helm upgrade`:
+
+| 1.x | 2.x |
+|-----|-----|
+| `key` | `licenseKey` |
+| `license` | `licenseFile` |
+| `keySecretRef` + `keySecretKey` | `licenseKeySecretRef.name` + `licenseKeySecretRef.key` |
+| `licenseSecretRef` + `licenseSecretKey` | `licenseFileSecretRef.name` + `licenseFileSecretRef.key` |
+
+A HorizontalPodAutoscaler on the KubeMQ StatefulSet is unsupported: the replica count is bound to
+the license and managed by the operator.
 
 ## What gets installed
 
 | Object | Name |
 |--------|------|
 | CRDs | `kubemqclusters.next.kubemq.io`, `kubemqconnectors.next.kubemq.io` (version `v1`) |
-| Operator Deployment and ServiceAccount | `kubemq-operator-next` |
-| ClusterRole / ClusterRoleBinding | `kubemq-operator-next` / `kubemq-operator-next-<namespace>-crb` |
-| Server ServiceAccount, Role, RoleBinding | `kubemq-cluster-next`, `kubemq-cluster-next-role`, `kubemq-cluster-next-rb` |
+| Operator Deployment | `kubemq-operator-next` |
 | KubemqCluster (when `cluster.enabled=true`) | the release name |
+
+### RBAC objects the chart creates
+
+| Object | Name | When |
+|--------|------|------|
+| Operator ServiceAccount | `kubemq-operator-next` | `operator.enabled=true` |
+| Operator ClusterRole / ClusterRoleBinding | `kubemq-operator-next` / `kubemq-operator-next-<namespace>-crb` | `operator.enabled=true` |
+| Server ServiceAccount | `kubemq-cluster-next` | always |
+| Server Role / RoleBinding (OpenShift `privileged` SCC) | `kubemq-cluster-next-role` / `kubemq-cluster-next-rb` | always |
+| Server license ClusterRole / ClusterRoleBinding | `kubemq-cluster-next-<namespace>-license` / `kubemq-cluster-next-<namespace>-license-crb` | always |
+
+The license ClusterRole grants the server `get` on the `kube-system` namespace only: the server
+reads that namespace's UID as its installation fingerprint. Without it the server logs a boot
+warning and falls back to a persisted random id, and an offline license file bound to a
+fingerprint list refuses to start. Non-Helm installs get the same server ServiceAccount,
+ClusterRole and ClusterRoleBinding from the operator repo file `deploy/next/rbac.yaml`.
 
 Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry login:
 `kubemq-operator-next:latest` and `kubemq-next:latest`. Pin a release with
@@ -38,12 +97,12 @@ Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry logi
 
 ## Configuring the cluster
 
-Every top-level value that is not a chart-only key (`key`, `license`, `cluster`, `operator`,
-`preDelete`, `imagePullSecrets`, `nameOverride`, `fullnameOverride`) is passed through verbatim into the
-`KubemqCluster` spec:
+Every top-level value that is not a chart-only key (`licenseKey`, `licenseFile`, `licenseKeySecretRef`,
+`licenseFileSecretRef`, `cluster`, `operator`, `preDelete`, `imagePullSecrets`, `nameOverride`,
+`fullnameOverride`) is passed through verbatim into the `KubemqCluster` spec:
 
 ```bash
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set key=<key> \
+helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set licenseKey=<key> \
   --set replicas=3 --set volume.size=50Gi --set mqtt.enabled=true
 ```
 
