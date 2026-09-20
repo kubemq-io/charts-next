@@ -3,7 +3,22 @@ entries:
   kubemq-next:
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2026-09-18T18:21:57.038357+03:00"
+    created: "2026-09-20T08:29:25.211031+03:00"
+    description: KubeMQ (next line) — operator, CRDs and an optional KubeMQ cluster
+      in one chart
+    digest: 8ab19c9b32c69f1420be0645930929ee76d774156591600fca3a1004ec09e892
+    maintainers:
+    - email: info@kubemq.io
+      name: KubeMQ
+      url: https://kubemq.io
+    name: kubemq-next
+    type: application
+    urls:
+    - https://kubemq-io.github.io/charts-next/kubemq-next-2.0.0.tgz
+    version: 2.0.0
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-09-20T08:29:25.210799+03:00"
     description: KubeMQ (next line) — operator, CRDs and an optional KubeMQ cluster
       in one chart
     digest: a19082fc90d09c3d4de67983eb265f25d0a054c2b099da4fa66d677f6380520b
@@ -16,4 +31,4 @@ entries:
     urls:
     - https://kubemq-io.github.io/charts-next/kubemq-next-1.0.0.tgz
     version: 1.0.0
-generated: "2026-09-18T18:21:57.037496+03:00"
+generated: "2026-09-20T08:29:25.210225+03:00"
