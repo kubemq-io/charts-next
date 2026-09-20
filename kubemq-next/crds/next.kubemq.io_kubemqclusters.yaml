@@ -688,18 +688,30 @@ spec:
                         - name
                       type: object
                   type: object
-                license:
+                licenseKey:
                   type: string
-                key:
+                licenseFile:
                   type: string
-                keySecretRef:
-                  type: string
-                keySecretKey:
-                  type: string
-                licenseSecretRef:
-                  type: string
-                licenseSecretKey:
-                  type: string
+                licenseKeySecretRef:
+                  properties:
+                    key:
+                      type: string
+                    name:
+                      minLength: 1
+                      type: string
+                  required:
+                    - name
+                  type: object
+                licenseFileSecretRef:
+                  properties:
+                    key:
+                      type: string
+                    name:
+                      minLength: 1
+                      type: string
+                  required:
+                    - name
+                  type: object
                 podAntiAffinity:
                   properties:
                     enabled:
@@ -1192,6 +1204,8 @@ spec:
               x-kubernetes-validations:
                 - message: "replicas is immutable when store.engine is 'next' (day-2 scale-out unsupported)"
                   rule: "!(has(self.store) && has(self.store.engine) && self.store.engine == 'next') || self.replicas == oldSelf.replicas"
+                - message: "exactly one license source is required: licenseKey, licenseFile, licenseKeySecretRef or licenseFileSecretRef"
+                  rule: "(has(self.licenseKey) ? 1 : 0) + (has(self.licenseFile) ? 1 : 0) + (has(self.licenseKeySecretRef) ? 1 : 0) + (has(self.licenseFileSecretRef) ? 1 : 0) == 1"
             status:
               description: KubemqClusterStatus defines the observed state of KubemqCluster
               properties:
@@ -1241,6 +1255,10 @@ spec:
                 grpc:
                   type: string
                 license_expire:
+                  type: string
+                license_id:
+                  type: string
+                license_source_hash:
                   type: string
                 license_to:
                   type: string

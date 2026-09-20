@@ -1,11 +1,27 @@
-# License. A KubeMQ server does not start without one. Set the key here, or keep it out of
-# the KubemqCluster object and Helm's saved values by referencing an existing Secret:
-#   kubectl create secret generic my-kubemq-license --from-literal=key=<your-license-key>
-key:
-# keySecretRef: my-kubemq-license
-# keySecretKey: key
-# licenseSecretRef: my-kubemq-license
-# licenseSecretKey: license
+# License. A KubeMQ server does not start without one. Set exactly ONE of the four sources:
+#
+#   licenseKey   — the online license key (short string). The server activates it against the
+#                  KubeMQ license service and keeps a lease. Becomes pod env KUBEMQ_LICENSE_KEY.
+#   licenseFile  — an offline, signed license file: the armored
+#                  "-----BEGIN KUBEMQ LICENSE-----" text or a bare compact JWS. The server verifies
+#                  the signature locally; no network needed. Becomes pod env KUBEMQ_LICENSE_DATA.
+#                  Pass it with `--set-file licenseFile=./kubemq.license`.
+#
+# To keep the license out of the KubemqCluster object and out of Helm's saved values, put it in an
+# existing Secret and reference that Secret instead (name = Secret name, key = data key; the key
+# defaults to "licenseKey" / "licenseFile" when omitted):
+#   kubectl create secret generic my-kubemq-license --from-literal=licenseKey=<key>
+#   kubectl create secret generic my-kubemq-license --from-file=licenseFile=./kubemq.license
+#
+# The four sources are mutually exclusive — rendering fails when none or more than one is set.
+licenseKey:
+licenseFile:
+# licenseKeySecretRef:
+#   name: my-kubemq-license
+#   key: licenseKey
+# licenseFileSecretRef:
+#   name: my-kubemq-license
+#   key: licenseFile
 
 # The KubeMQ cluster. When enabled the chart renders one next.kubemq.io/v1 KubemqCluster named
 # after the release. Every other top-level value in this file that is not listed under
@@ -46,4 +62,5 @@ preDelete:
 imagePullSecrets: []
 
 # chart-only keys (never passed into the KubemqCluster spec):
-#   key, license, cluster, operator, preDelete, imagePullSecrets, nameOverride, fullnameOverride
+#   licenseKey, licenseFile, licenseKeySecretRef, licenseFileSecretRef, cluster, operator, preDelete,
+#   imagePullSecrets, nameOverride, fullnameOverride
