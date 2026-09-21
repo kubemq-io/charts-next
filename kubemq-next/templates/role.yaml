@@ -2,7 +2,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubemq-operator-next
+  # Cluster-scoped, so suffixed with the release namespace: one operator runs per namespace
+  # (it watches only its own), and a second install in another namespace must not collide.
+  name: {{ include "kubemq.operatorRoleName" . }}
 rules:
   - apiGroups:
       - ""
@@ -68,7 +70,10 @@ rules:
   - apiGroups:
       - next.kubemq.io
     resources:
-      - "*"
+      - kubemqclusters
+      - kubemqclusters/status
+      - kubemqconnectors
+      - kubemqconnectors/status
     verbs:
       - create
       - delete
@@ -77,10 +82,4 @@ rules:
       - patch
       - update
       - watch
-  - apiGroups:
-      - ""
-    resources:
-      - namespaces
-    verbs:
-      - get
 {{- end }}

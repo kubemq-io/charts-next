@@ -1,6 +1,11 @@
 {{- $name := include "kubemq.fullname" . -}}
 {{- $ns := .Release.Namespace -}}
+{{- if .Values.operator.enabled }}
 KubeMQ operator installed in namespace {{ $ns }}.
+{{- else }}
+No operator installed (operator.enabled=false): this release relies on the operator another
+release installed in namespace {{ $ns }}.
+{{- end }}
 {{ if .Values.cluster.enabled }}
 Cluster "{{ $name }}" was requested. Watch it come up:
 
@@ -26,6 +31,11 @@ Dashboard:
 Note: `kubectl port-forward` to the Kafka service does NOT work for Kafka clients. After the
 first answer the client is sent to each pod's in-cluster address, which your machine cannot
 resolve. Run Kafka clients inside the cluster, or expose Kafka (see the chart README).
+{{- if and .Values.amqp .Values.amqp.management .Values.amqp.management.enabled }}
+
+RabbitMQ management API: Service {{ $name }}-amqp-mgmt, type {{ .Values.amqp.management.expose | default "ClusterIP" }}.
+{{- if not .Values.amqp.management.expose }} In-cluster only; set amqp.management.expose to publish it.{{ end }}
+{{- end }}
 {{- if not .Values.volume }}
 
 WARNING: no volume is set. All data is lost whenever a pod restarts.
@@ -38,3 +48,12 @@ WARNING: no volume is set. All data is lost whenever a pod restarts.
 {{ else }}
 No cluster was requested (cluster.enabled=false). Create a KubemqCluster object to start one.
 {{ end }}
+{{- if .Values.operator.enabled }}
+{{- with .Values.operator.connectorImages }}
+{{- if not (and .targets .sources .bridges) }}
+
+KubemqConnector: set spec.image on every connector whose type has no default image
+(operator.connectorImages). A connector with neither fails with "no image configured".
+{{- end }}
+{{- end }}
+{{- end }}

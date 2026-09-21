@@ -80,10 +80,23 @@ the license and managed by the operator.
 | Object | Name | When |
 |--------|------|------|
 | Operator ServiceAccount | `kubemq-operator-next` | `operator.enabled=true` |
-| Operator ClusterRole / ClusterRoleBinding | `kubemq-operator-next` / `kubemq-operator-next-<namespace>-crb` | `operator.enabled=true` |
-| Server ServiceAccount | `kubemq-cluster-next` | always |
-| Server Role / RoleBinding (OpenShift `privileged` SCC) | `kubemq-cluster-next-role` / `kubemq-cluster-next-rb` | always |
-| Server license ClusterRole / ClusterRoleBinding | `kubemq-cluster-next-<namespace>-license` / `kubemq-cluster-next-<namespace>-license-crb` | always |
+| Operator ClusterRole / ClusterRoleBinding | `kubemq-operator-next-<namespace>` / `kubemq-operator-next-<namespace>-binding` | `operator.enabled=true` |
+| Server ServiceAccount | `kubemq-cluster-next` | `operator.enabled=true` |
+| Server Role / RoleBinding (OpenShift `privileged` SCC) | `kubemq-cluster-next-role` / `kubemq-cluster-next-rb` | `operator.enabled=true` |
+| Server license ClusterRole / ClusterRoleBinding | `kubemq-cluster-next-<namespace>-license` / `kubemq-cluster-next-<namespace>-license-crb` | `operator.enabled=true` |
+
+Every cluster-scoped name carries the release namespace, so the chart installs once per
+namespace side by side. The operator watches only its own namespace, and it puts the server
+ServiceAccount `kubemq-cluster-next` on every server pod, so the server objects belong to the
+release that installs the namespace's operator. A second release in the same namespace with
+`operator.enabled=false` (a cluster only) reuses them.
+
+The operator's ClusterRole lists its `next.kubemq.io` resources explicitly (`kubemqclusters`,
+`kubemqconnectors` and their `status`); there is no wildcard.
+
+Upgrading from chart 2.1.0 or earlier renames the operator's ClusterRole (it did not carry the
+namespace) and, with it, the binding: a ClusterRoleBinding's `roleRef` cannot be changed in place,
+so the binding is created under a new name and Helm removes the old pair. Nothing else moves.
 
 The license ClusterRole grants the server `get` on the `kube-system` namespace only: the server
 reads that namespace's UID as its installation fingerprint. Without it the server logs a boot
@@ -91,9 +104,13 @@ warning and falls back to a persisted random id, and an offline license file bou
 fingerprint list refuses to start. Non-Helm installs get the same server ServiceAccount,
 ClusterRole and ClusterRoleBinding from the operator repo file `deploy/next/rbac.yaml`.
 
-Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry login:
-`kubemq-operator-next:latest` and `kubemq-next:latest`. Pin a release with
-`--set operator.image=…:v1.0.0` and `--set image.image=…/kubemq-next:v1.0.0`.
+Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry login. The operator
+is `kubemq-operator-next:latest`; pin it with `--set operator.image=…/kubemq-operator-next:<version>`.
+The default server image is pinned to `kubemq-next:v1.1.0` (`operator.serverImage`) and moves
+together with each operator release: a server release can depend on a newer operator, so the
+chart never points the server at `:latest`. Override it for one cluster with
+`--set image.image=…/kubemq-next:<version>`, or for every cluster the operator creates with
+`--set operator.serverImage=…`.
 
 ## Configuring the cluster
 
@@ -111,6 +128,11 @@ install serves both with no connector values. Turn one off with `--set kafka.ena
 `--set amqp.enabled=false`. The other wire-protocol connectors (`mqtt`, `amqp10`, `stomp`, `aws`,
 `gcp`) are opt-in via `<name>.enabled=true`.
 
+The RabbitMQ-compatible management API (`amqp.management.enabled=true`, port 15672) gets its own
+Service, `<cluster>-amqp-mgmt`, which is `ClusterIP` (in-cluster only) whatever the AMQP listeners
+use. Publish it deliberately with `--set amqp.management.expose=NodePort` or `LoadBalancer`, and
+only with authentication configured: without it the management API admits any credentials.
+
 Operator only, no cluster: `--set cluster.enabled=false`, then apply your own `next.kubemq.io/v1`
 `KubemqCluster` manifests.
 
@@ -127,7 +149,10 @@ needed. `helm uninstall` also leaves the two CRDs in place — Helm never remove
 ## Connectors
 
 `KubemqConnector` objects are installed by applying a `next.kubemq.io/v1` manifest; there is no connector
-chart. Connector images ship in next v1.1 — until then set `spec.image` on every `KubemqConnector`.
+chart. No `-next` connector image is published yet, so the chart sets no default connector image
+(`operator.connectorImages.*` are empty): set `spec.image` on every `KubemqConnector`. A connector
+without one fails its reconcile with a "no image configured" error in its status and a Warning
+event. Once the images ship, set `operator.connectorImages.targets` / `sources` / `bridges`.
 
 ## Running beside a legacy v2 installation
 
@@ -143,5 +168,6 @@ kubectl get kubemqclusters.core.k8s.kubemq.io -A
 ## Releasing this chart (maintainers)
 
 1. In the operator repo run `task crds:sync` so `kubemq-next/crds/` matches the operator.
-2. Bump `version` (and `appVersion`) in `kubemq-next/Chart.yaml`.
+2. Bump `version` (and `appVersion`) in `kubemq-next/Chart.yaml`, and bump
+   `operator.serverImage` in `kubemq-next/values.yaml` to the server version released with that operator.
 3. `scripts/package.sh`, commit `docs/`, push to `main`. GitHub Pages serves `docs/`.

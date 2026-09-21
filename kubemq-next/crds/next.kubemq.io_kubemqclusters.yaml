@@ -68,7 +68,7 @@ spec:
                     disabled:
                       type: boolean
                     expose:
-                      pattern: (ClusterIP|NodePort|LoadBalancer)
+                      pattern: ^(ClusterIP|NodePort|LoadBalancer)$
                       type: string
                     nodePort:
                       format: int32
@@ -184,6 +184,13 @@ spec:
                       properties:
                         enabled:
                           type: boolean
+                        expose:
+                          description: How the AMQP management HTTP Service is exposed. Defaults to ClusterIP (in-cluster only).
+                          enum:
+                          - ClusterIP
+                          - NodePort
+                          - LoadBalancer
+                          type: string
                         port:
                           format: int32
                           maximum: 65535
@@ -537,7 +544,7 @@ spec:
                     enableReflection:
                       type: boolean
                     expose:
-                      pattern: (ClusterIP|NodePort|LoadBalancer)
+                      pattern: ^(ClusterIP|NodePort|LoadBalancer)$
                       type: string
                     nodePort:
                       format: int32
@@ -612,7 +619,7 @@ spec:
                     image:
                       type: string
                     pullPolicy:
-                      pattern: (IfNotPresent|Always|Never)
+                      pattern: ^(IfNotPresent|Always|Never)$
                       type: string
                   type: object
                 kafka:
@@ -689,8 +696,10 @@ spec:
                       type: object
                   type: object
                 licenseKey:
+                  minLength: 1
                   type: string
                 licenseFile:
+                  minLength: 1
                   type: string
                 licenseKeySecretRef:
                   properties:
@@ -989,7 +998,7 @@ spec:
                     disabled:
                       type: boolean
                     expose:
-                      pattern: (ClusterIP|NodePort|LoadBalancer)
+                      pattern: ^(ClusterIP|NodePort|LoadBalancer)$
                       type: string
                     nodePort:
                       format: int32

@@ -1,7 +1,8 @@
-# Always rendered (like the server ServiceAccount itself): the server reads the kube-system
-# namespace UID as its installation fingerprint. Without this grant it logs a boot warning and
-# falls back to a persisted random id, and an offline license file bound to a fingerprint list
-# refuses to start.
+{{- if .Values.operator.enabled }}
+{{- /* Rendered with the server ServiceAccount (see service_account.yaml): the server reads the
+     kube-system namespace UID as its installation fingerprint. Without this grant it logs a boot
+     warning and falls back to a persisted random id, and an offline license file bound to a
+     fingerprint list refuses to start. */}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -24,3 +25,4 @@ roleRef:
   kind: ClusterRole
   name: {{ include "kubemq.clusterLicenseRoleName" . }}
   apiGroup: rbac.authorization.k8s.io
+{{- end }}
