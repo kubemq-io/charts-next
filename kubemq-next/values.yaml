@@ -55,7 +55,7 @@ operator:
   # Default server image for clusters that do not set image.image. Pinned to a version, not
   # :latest, and bumped together with each operator release: a server release can require
   # something only a newer operator sets on its pods, so the two must move in step.
-  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v1.1.0
+  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v1.2.0
   # Default image per connector type, for KubemqConnectors that do not set spec.image. No
   # -next connector image is published yet, so these are empty: set spec.image on every
   # KubemqConnector. A connector with neither fails its reconcile with a clear

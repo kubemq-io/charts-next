@@ -106,7 +106,7 @@ ClusterRole and ClusterRoleBinding from the operator repo file `deploy/next/rbac
 
 Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry login. The operator
 is `kubemq-operator-next:latest`; pin it with `--set operator.image=…/kubemq-operator-next:<version>`.
-The default server image is pinned to `kubemq-next:v1.1.0` (`operator.serverImage`) and moves
+The default server image is pinned to `kubemq-next:v1.2.0` (`operator.serverImage`) and moves
 together with each operator release: a server release can depend on a newer operator, so the
 chart never points the server at `:latest`. Override it for one cluster with
 `--set image.image=…/kubemq-next:<version>`, or for every cluster the operator creates with
