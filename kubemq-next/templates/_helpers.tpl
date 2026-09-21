@@ -38,8 +38,15 @@ Create the name of the service account to use
 {{- end -}}
 {{- end -}}
 
+{{- define "kubemq.operatorRoleName" -}}
+{{- printf "kubemq-operator-next-%s" .Release.Namespace -}}
+{{- end -}}
+
+{{- /* The binding is renamed together with the ClusterRole it points at: roleRef is immutable,
+     so an upgrade that changed only the reference would be rejected by the API server. Under a
+     new name Helm creates the new binding and removes the old one. */}}
 {{- define "kubemq.crbName" -}}
-{{- printf "kubemq-operator-next-%s-crb" .Release.Namespace -}}
+{{- printf "kubemq-operator-next-%s-binding" .Release.Namespace -}}
 {{- end -}}
 
 {{/* Release-namespace-scoped names for the server's license ClusterRole and its binding:

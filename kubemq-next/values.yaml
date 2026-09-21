@@ -52,13 +52,18 @@ operator:
   enabled: true
   image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:latest
   pullPolicy: Always
-  # Default server image for clusters that do not set image.image.
-  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:latest
-  # Connector images ship in next v1.1. Until then set spec.image on every KubemqConnector.
+  # Default server image for clusters that do not set image.image. Pinned to a version, not
+  # :latest, and bumped together with each operator release: a server release can require
+  # something only a newer operator sets on its pods, so the two must move in step.
+  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v1.1.0
+  # Default image per connector type, for KubemqConnectors that do not set spec.image. No
+  # -next connector image is published yet, so these are empty: set spec.image on every
+  # KubemqConnector. A connector with neither fails its reconcile with a clear
+  # "no image configured" error instead of a pod stuck pulling an image that does not exist.
   connectorImages:
-    targets: europe-docker.pkg.dev/kubemq/images/kubemq-targets-next:latest
-    sources: europe-docker.pkg.dev/kubemq/images/kubemq-sources-next:latest
-    bridges: europe-docker.pkg.dev/kubemq/images/kubemq-bridges-next:latest
+    targets: ""
+    sources: ""
+    bridges: ""
 
 # Pre-delete hook: on `helm uninstall` it deletes the KubemqCluster while the operator is still
 # running, so the operator can release its finalizer before Helm removes the operator. The image
