@@ -1,4 +1,10 @@
 {{- if .Values.cluster.enabled }}
+{{- if .Values.standalone }}
+{{- fail "standalone Kubernetes deployments are no longer supported; use single-node Docker or a Kubernetes cluster with at least 3 servers" }}
+{{- end }}
+{{- if lt (int (.Values.replicas | default 3)) 3 }}
+{{- fail "Kubernetes clusters require at least 3 servers; migrate smaller deployments before upgrading" }}
+{{- end }}
 {{- /* Exactly one license source: licenseKey, licenseFile, licenseKeySecretRef, licenseFileSecretRef.
      The chart 1.x values (key, license, keySecretRef, keySecretKey, licenseSecretRef, licenseSecretKey)
      are not license sources any more: the CRD schema prunes/ignores unknown spec fields rather than

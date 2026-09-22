@@ -245,3 +245,11 @@ kubectl get kubemqclusters.core.k8s.kubemq.io -A
 2. Bump `version` (and `appVersion`) in `kubemq-next/Chart.yaml`, and bump
    `operator.serverImage` in `kubemq-next/values.yaml` to the server version released with that operator.
 3. `scripts/package.sh`, commit `docs/`, push to `main`. GitHub Pages serves `docs/`.
+
+## Supported deployments
+
+This chart installs operator-managed Kubernetes clusters with at least three servers.
+`standalone=true` and replica counts of one or two are rejected. Use single-node Docker
+for local evaluation. Existing unsupported installations must migrate before upgrading;
+do not change an established cluster membership or reuse its member volumes as a new cluster.
+Keep the previous chart, operator and server versions pinned until migration is verified.
