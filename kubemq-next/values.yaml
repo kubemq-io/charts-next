@@ -34,6 +34,8 @@ cluster:
   enabled: true
 
 # Initial server count: permanent after the cluster is established. Kubernetes rejects later
+# Only operator-managed clusters with at least 3 servers are supported. For a single
+# development server, use Docker. standalone=true is rejected.
 # replica changes; the operator also holds the established count. Choose before first install.
 # The license may cap this initial count. Each server requests its own volume (5Gi by default).
 replicas: 3
