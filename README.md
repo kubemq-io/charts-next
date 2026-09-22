@@ -18,9 +18,16 @@ helm install kubemq-next kubemq-next/kubemq-next -n kubemq --create-namespace --
 helm install kubemq-next kubemq-next/kubemq-next -n kubemq --create-namespace --set-file licenseFile=./kubemq.license
 ```
 
+The default requests **3 server nodes, each with a 5 GiB volume** (15 GiB total).
+Set `replicas` before first install. The license can cap the initial count. Once established,
+the member count is permanent: Kubernetes rejects changes to `replicas` for the next storage
+engine. If a changed count reaches the operator through an older schema, it reports
+`ReplicasFrozen` and keeps the established count.
+
 ## Licensing
 
-A KubeMQ server does not start without a license. The chart takes exactly **one** of four sources
+A KubeMQ deployment on Kubernetes requires a license key or signed file. The signup-free
+standalone-container evaluation does not apply to Kubernetes. The chart takes exactly **one** of four sources
 (rendering fails when none or more than one is set):
 
 | Value | What it is | Reaches the pod as |
@@ -105,12 +112,32 @@ fingerprint list refuses to start. Non-Helm installs get the same server Service
 ClusterRole and ClusterRoleBinding from the operator repo file `deploy/next/rbac.yaml`.
 
 Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry login. The operator
-is `kubemq-operator-next:latest`; pin it with `--set operator.image=…/kubemq-operator-next:<version>`.
+is pinned to `kubemq-operator-next:v1.2.0` with `IfNotPresent` pull policy.
 The default server image is pinned to `kubemq-next:v1.2.0` (`operator.serverImage`) and moves
 together with each operator release: a server release can depend on a newer operator, so the
 chart never points the server at `:latest`. Override it for one cluster with
 `--set image.image=…/kubemq-next:<version>`, or for every cluster the operator creates with
 `--set operator.serverImage=…`.
+
+## Upgrade order
+
+Before using server v1.2.0 or newer, upgrade the operator to v1.2.0 or a compatible newer release.
+The server requires the operator-managed marker; an older operator omits it and every server pod
+exits with code 4. Upgrade the operator while keeping the current server image explicitly pinned,
+wait for its rollout and reconciliation, then upgrade the server image. For example, on an existing
+release, substitute its current server image below:
+
+```bash
+helm upgrade kubemq-next kubemq-next/kubemq-next -n kubemq --reuse-values \
+  --set operator.image=europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v1.2.0 \
+  --set operator.serverImage=<current-server-image> --set image.image=<current-server-image>
+kubectl rollout status deployment/kubemq-operator-next -n kubemq
+# Wait for the cluster pod template to include KUBEMQ_OPERATOR_MANAGED before upgrading servers.
+kubectl get statefulset kubemq-next -n kubemq -o yaml
+```
+
+If `operator.enabled=false`, upgrade the release that owns the operator first. A chart render cannot
+check which operator is running, so changing both images at once is not an upgrade-order guarantee.
 
 ## Configuring the cluster
 
@@ -135,6 +162,53 @@ only with authentication configured: without it the management API admits any cr
 
 Operator only, no cluster: `--set cluster.enabled=false`, then apply your own `next.kubemq.io/v1`
 `KubemqCluster` manifests.
+
+## External Kafka access
+
+Kafka returns an address for each broker. A shared Service or `kubectl port-forward` cannot route
+those subsequent connections to the right broker. In-cluster clients use the automatically generated
+pod addresses. External clients need one reachable address and one Service per server.
+
+For a three-node release named `kubemq-next` in namespace `kubemq`, provision a Service for each
+pod. This example uses a fixed NodePort per pod; allow the ports through your firewall and replace
+`kafka.example.com` with an address clients can reach on your Kubernetes nodes:
+
+```bash
+for ordinal in 0 1 2; do
+  kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubemq-next-kafka-external-${ordinal}
+  namespace: kubemq
+spec:
+  type: NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: kubemq-next-${ordinal}
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+      nodePort: $((31092 + ordinal))
+EOF
+done
+```
+
+Put the corresponding broker addresses into a values file. Helm passes `kafka.peers` to
+`spec.kafka.peers` on the cluster. Broker identifiers are pod ordinals plus one:
+
+```yaml
+kafka:
+  peers: "1@kafka.example.com:31092,2@kafka.example.com:31093,3@kafka.example.com:31094"
+```
+
+Apply that file with `helm upgrade ... --reuse-values -f kafka-external.yaml`. Leave the shared
+Kafka Service at `ClusterIP`; the per-pod Services above carry external traffic. Alternatively,
+provision a LoadBalancer for each pod and put its assigned address and Kafka port in `peers`.
+Every client must be able to reach every advertised address, including clients inside Kubernetes.
+Configure authentication and encryption before exposing Kafka to an untrusted network; this example
+shows address routing for the plaintext listener. See the
+[Kafka Kubernetes access guide](https://docs.kubemq.io/connectors/kafka/how-to/kubernetes-access).
 
 ## Data warning
 

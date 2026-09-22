@@ -1,4 +1,4 @@
-# License. A KubeMQ server does not start without one. Set exactly ONE of the four sources:
+# License. Kubernetes deployments require a key or signed file. Set exactly ONE of the four sources:
 #
 #   licenseKey   — the online license key (short string). The server activates it against the
 #                  KubeMQ license service and keeps a lease. Becomes pod env KUBEMQ_LICENSE_KEY.
@@ -33,6 +33,11 @@ licenseFile:
 cluster:
   enabled: true
 
+# Initial server count: permanent after the cluster is established. Kubernetes rejects later
+# replica changes; the operator also holds the established count. Choose before first install.
+# The license may cap this initial count. Each server requests its own volume (5Gi by default).
+replicas: 3
+
 # Persistent storage for each server node. The next storage engine keeps its data and the cached
 # license lease on this volume. Without one, every pod restart starts from an empty store: a rolling
 # update of a multi-node cluster restarts each node empty and the cluster may not re-form, and each
@@ -50,8 +55,8 @@ health:
 # operator is already installed in this namespace by another release.
 operator:
   enabled: true
-  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:latest
-  pullPolicy: Always
+  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v1.2.0
+  pullPolicy: IfNotPresent
   # Default server image for clusters that do not set image.image. Pinned to a version, not
   # :latest, and bumped together with each operator release: a server release can require
   # something only a newer operator sets on its pods, so the two must move in step.
