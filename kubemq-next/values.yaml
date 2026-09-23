@@ -57,7 +57,7 @@ health:
 # operator is already installed in this namespace by another release.
 operator:
   enabled: true
-  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.3.0
+  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.3.1
   pullPolicy: IfNotPresent
   # Default server image for clusters that do not set image.image. Pinned to a version, not
   # :latest, and bumped together with each operator release: a server release can require
