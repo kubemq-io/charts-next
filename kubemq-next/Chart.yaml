@@ -2,8 +2,8 @@ apiVersion: v2
 name: kubemq-next
 description: KubeMQ (next line) — operator, CRDs and an optional KubeMQ cluster in one chart
 type: application
-version: 2.2.1
-appVersion: 1.2.0
+version: 3.3.0
+appVersion: "3.3.0"
 maintainers:
   - name: KubeMQ
     email: info@kubemq.io

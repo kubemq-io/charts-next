@@ -89,7 +89,6 @@ the license and managed by the operator.
 | Operator ServiceAccount | `kubemq-operator-next` | `operator.enabled=true` |
 | Operator ClusterRole / ClusterRoleBinding | `kubemq-operator-next-<namespace>` / `kubemq-operator-next-<namespace>-binding` | `operator.enabled=true` |
 | Server ServiceAccount | `kubemq-cluster-next` | `operator.enabled=true` |
-| Server Role / RoleBinding (OpenShift `privileged` SCC) | `kubemq-cluster-next-role` / `kubemq-cluster-next-rb` | `operator.enabled=true` |
 | Server license ClusterRole / ClusterRoleBinding | `kubemq-cluster-next-<namespace>-license` / `kubemq-cluster-next-<namespace>-license-crb` | `operator.enabled=true` |
 
 Every cluster-scoped name carries the release namespace, so the chart installs once per
