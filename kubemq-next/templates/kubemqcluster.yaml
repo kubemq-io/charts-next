@@ -27,6 +27,11 @@ kind: KubemqCluster
 metadata:
   name: {{ include "kubemq.fullname" . }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+    {{- with .Values.cluster.installationID }}
+    kmq.io/installation-id: {{ . | quote }}
+    {{- end }}
   labels:
     app: {{ include "kubemq.fullname" . }}
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}

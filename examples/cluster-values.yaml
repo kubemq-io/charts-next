@@ -1,0 +1,23 @@
+# Install separately from the namespace operator release. Create this customer-owned
+# license Secret before install; it must permit at least three Kubernetes servers.
+operator:
+  enabled: false
+cluster:
+  enabled: true
+fullnameOverride: messaging
+licenseKeySecretRef:
+  name: my-kubemq-license
+replicas: 3
+volume:
+  size: 5Gi
+api:
+  tlsSecret: messaging-management-tls
+  expose: ClusterIP
+  auth:
+    enable: true
+    adminUsername: admin
+# Retrieve the customer bootstrap password from the generated messaging-api-admin
+# Secret using an authorized Kubernetes identity. Never retrieve/use its operator token.
+# Create messaging-management-tls with tls.crt/tls.key; certificate SANs include
+# messaging-api.kubemq.svc and the hostname/IP used by your secure client.
+# Complete password setup via the supported secure management workflow.

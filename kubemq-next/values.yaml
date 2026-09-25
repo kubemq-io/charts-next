@@ -10,7 +10,7 @@
 # To keep the license out of the KubemqCluster object and out of Helm's saved values, put it in an
 # existing Secret and reference that Secret instead (name = Secret name, key = data key; the key
 # defaults to "licenseKey" / "licenseFile" when omitted):
-#   kubectl create secret generic my-kubemq-license --from-literal=licenseKey=<key>
+#   kubectl create secret generic my-kubemq-license --from-file=licenseKey=./license.key
 #   kubectl create secret generic my-kubemq-license --from-file=licenseFile=./kubemq.license
 #
 # The four sources are mutually exclusive — rendering fails when none or more than one is set.
@@ -28,10 +28,13 @@ licenseFile:
 # "chart-only keys" below is passed through verbatim into the KubemqCluster spec
 # (replicas, image, volume, store, grpc, rest, kafka, ...).
 #
-# DATA WARNING: setting enabled=false on a live release, or running `helm uninstall`, deletes
-# the KubemqCluster and its pods. The PersistentVolumeClaims are kept and must be deleted by hand.
+# The default release owns only the namespace operator and its shared permissions.
+# A separate cluster release sets cluster.enabled=true and operator.enabled=false.
+# KubemqCluster is retained on uninstall; delete it explicitly with UID preconditions.
 cluster:
-  enabled: true
+  enabled: false
+  # Optional nonsecret operation identity for recovering an interrupted create.
+  installationID: ""
 
 # Initial server count: permanent after the cluster is established. Kubernetes rejects later
 # Only operator-managed clusters with at least 3 servers are supported. For a single
@@ -53,16 +56,16 @@ volume:
 health:
   enabled: true
 
-# The operator. Set enabled=false to skip the operator and its RBAC when a next-line
-# operator is already installed in this namespace by another release.
+# Install exactly one independently owned operator release per namespace. Cluster
+# releases must set enabled=false and reuse that operator and its shared permissions.
 operator:
   enabled: true
-  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.3.1
+  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.4.0
   pullPolicy: IfNotPresent
   # Default server image for clusters that do not set image.image. Pinned to a version, not
   # :latest, and bumped together with each operator release: a server release can require
   # something only a newer operator sets on its pods, so the two must move in step.
-  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v3.3.0
+  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v3.5.0
   # Default image per connector type, for KubemqConnectors that do not set spec.image. No
   # -next connector image is published yet, so these are empty: set spec.image on every
   # KubemqConnector. A connector with neither fails its reconcile with a clear
@@ -71,13 +74,6 @@ operator:
     targets: ""
     sources: ""
     bridges: ""
-
-# Pre-delete hook: on `helm uninstall` it deletes the KubemqCluster while the operator is still
-# running, so the operator can release its finalizer before Helm removes the operator. The image
-# must be pullable from this cluster or `helm uninstall` blocks. Set enabled=false to opt out.
-preDelete:
-  enabled: true
-  image: registry.k8s.io/kubectl:v1.31.0
 
 imagePullSecrets: []
 

@@ -40,6 +40,10 @@ spec:
               properties:
                 api:
                   properties:
+                    tlsSecret:
+                      description: Same-namespace TLS Secret with tls.crt and tls.key; certificate must cover <cluster>-api.<namespace>.svc.
+                      type: string
+                      minLength: 1
                     allowOrigins:
                       items:
                         type: string

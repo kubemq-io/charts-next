@@ -1,7 +1,8 @@
 # KubeMQ Helm chart — next line
 
-One chart, `kubemq-next`, installs everything a new KubeMQ deployment needs on Kubernetes: the
-CRDs, the operator, and (by default) one KubeMQ cluster.
+The `kubemq-next` chart uses independent releases: one operator release per namespace, then
+one release per KubeMQ cluster. The default installs only the operator and shared permissions.
+Combined operator/cluster releases are refused.
 
 > **"next" means two things in KubeMQ.** `-next` artifacts (this chart, the `kubemq-next` image, the
 > `next.kubemq.io` API group) are the current product line for new installations. The *next storage
@@ -12,17 +13,46 @@ CRDs, the operator, and (by default) one KubeMQ cluster.
 ```bash
 helm repo add kubemq-next https://kubemq-io.github.io/charts-next
 helm repo update
-# online license key
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --create-namespace --set licenseKey=<your-license-key>
-# or an offline, signed license file (armored "-----BEGIN KUBEMQ LICENSE-----" text or a bare compact JWS)
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --create-namespace --set-file licenseFile=./kubemq.license
+helm install kubemq-operator kubemq-next/kubemq-next -n kubemq --create-namespace
+kubectl rollout status deployment/kubemq-operator-next -n kubemq --timeout=120s
+# Create my-kubemq-license separately, then install one independent cluster release.
+helm install messaging kubemq-next/kubemq-next -n kubemq --set cluster.enabled=true --set operator.enabled=false --set fullnameOverride=messaging --set licenseKeySecretRef.name=my-kubemq-license
 ```
+
+The operator release owns the shared ServiceAccounts and permissions. Reuse it for every cluster
+in that namespace. Inspect existing ownership and compatibility before installing; do not adopt
+another release's resources. Authentication and private management access must be configured in
+your cluster values; see `examples/cluster-values.yaml`. Helm success alone does not prove readiness.
+Require the `Ready` condition at the current custom-resource generation, current StatefulSet
+revision, and the intended durable license adoption on every server, then verify an actual message.
+
 
 The default requests **3 server nodes, each with a 5 GiB volume** (15 GiB total).
 Set `replicas` before first install. The license can cap the initial count. Once established,
 the member count is permanent: Kubernetes rejects changes to `replicas` for the next storage
 engine. If a changed count reaches the operator through an older schema, it reports
 `ReplicasFrozen` and keeps the established count.
+
+## Private encrypted management
+
+Create a customer-owned TLS Secret before applying the example cluster values:
+
+```text
+kubectl --context YOUR_CONTEXT -n kubemq create secret tls messaging-management-tls --cert=management.crt --key=management.key
+```
+
+The certificate must be valid for `messaging-api.kubemq.svc`. Include `localhost` and IP address
+`127.0.0.1` if the client verifies a local port-forward URL. Trust the issuing authority or the
+pinned certificate in the client; never disable verification. The operator validates the Secret
+before rolling workloads and uses the public certificate to verify each management request.
+Updating its certificate rolls the pods. Kubernetes HTTPS probes check listener health only;
+certificate-verified authenticated management and a real message remain separate acceptance checks.
+
+Apply the current chart CRDs explicitly before an upgrade (`kubectl apply -f kubemq-next/crds/`
+from the reviewed local chart), because Helm does not upgrade CRDs. Upgrade the compatible operator
+before enabling `api.tlsSecret` and the server version that supports native management TLS.
+On a disconnected installation, stage the pinned chart, operator/server images, native executables,
+kubectl, Helm, certificates and offline license beforehand. There is no hook image requirement.
 
 ## Licensing
 
@@ -42,10 +72,10 @@ To keep the license out of the `KubemqCluster` object and out of Helm's saved va
 ```bash
 # key
 kubectl -n kubemq create secret generic my-kubemq-license --from-literal=licenseKey=<your-license-key>
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set licenseKeySecretRef.name=my-kubemq-license
+helm install messaging kubemq-next/kubemq-next -n kubemq --set cluster.enabled=true --set operator.enabled=false --set fullnameOverride=messaging --set licenseKeySecretRef.name=my-kubemq-license
 # file
 kubectl -n kubemq create secret generic my-kubemq-license --from-file=licenseFile=./kubemq.license
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set licenseFileSecretRef.name=my-kubemq-license
+helm install messaging kubemq-next/kubemq-next -n kubemq --set cluster.enabled=true --set operator.enabled=false --set fullnameOverride=messaging --set licenseFileSecretRef.name=my-kubemq-license
 # a different data key
 helm install … --set licenseFileSecretRef.name=my-kubemq-license --set licenseFileSecretRef.key=lic
 ```
@@ -110,9 +140,8 @@ warning and falls back to a persisted random id, and an offline license file bou
 fingerprint list refuses to start. Non-Helm installs get the same server ServiceAccount,
 ClusterRole and ClusterRoleBinding from the operator repo file `deploy/next/rbac.yaml`.
 
-Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry login. The operator
-is pinned to `kubemq-operator-next:v1.2.0` with `IfNotPresent` pull policy.
-The default server image is pinned to `kubemq-next:v1.2.0` (`operator.serverImage`) and moves
+Images come from `europe-docker.pkg.dev/kubemq/images` and need no registry login. The operator image is pinned in `operator.image` with `IfNotPresent` pull policy.
+The default server image is pinned in `operator.serverImage` and moves
 together with each operator release: a server release can depend on a newer operator, so the
 chart never points the server at `:latest`. Override it for one cluster with
 `--set image.image=…/kubemq-next:<version>`, or for every cluster the operator creates with
@@ -120,23 +149,20 @@ chart never points the server at `:latest`. Override it for one cluster with
 
 ## Upgrade order
 
-Before using server v1.2.0 or newer, upgrade the operator to v1.2.0 or a compatible newer release.
-The server requires the operator-managed marker; an older operator omits it and every server pod
-exits with code 4. Upgrade the operator while keeping the current server image explicitly pinned,
-wait for its rollout and reconciliation, then upgrade the server image. For example, on an existing
-release, substitute its current server image below:
+Upgrade CRDs explicitly, then the independent operator release, then cluster server images.
+Keep the current server image pinned while upgrading the operator. Confirm the operator's rollout
+and reconciliation before selecting the compatible newer server image in each cluster release:
 
-```bash
-helm upgrade kubemq-next kubemq-next/kubemq-next -n kubemq --reuse-values \
-  --set operator.image=europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v1.2.0 \
-  --set operator.serverImage=<current-server-image> --set image.image=<current-server-image>
-kubectl rollout status deployment/kubemq-operator-next -n kubemq
-# Wait for the cluster pod template to include KUBEMQ_OPERATOR_MANAGED before upgrading servers.
-kubectl get statefulset kubemq-next -n kubemq -o yaml
+```text
+helm upgrade kubemq-operator kubemq-next/kubemq-next -n kubemq --reuse-values --set operator.image=PINNED_COMPATIBLE_OPERATOR_IMAGE --set operator.serverImage=CURRENT_SERVER_IMAGE
+kubectl rollout status deployment/kubemq-operator-next -n kubemq --timeout=120s
+helm upgrade messaging kubemq-next/kubemq-next -n kubemq --reuse-values --set image.image=PINNED_COMPATIBLE_SERVER_IMAGE
 ```
 
-If `operator.enabled=false`, upgrade the release that owns the operator first. A chart render cannot
-check which operator is running, so changing both images at once is not an upgrade-order guarantee.
+Record exact chart and image versions before running these commands; placeholders are deliberate.
+Inspect all dependent clusters and connectors before changing their shared operator. A chart render
+cannot discover runtime compatibility or authorize ownership transfer. Existing combined releases
+must follow the separate migration requirements below.
 
 ## Configuring the cluster
 
@@ -145,7 +171,7 @@ Every top-level value that is not a chart-only key (`licenseKey`, `licenseFile`,
 `fullnameOverride`) is passed through verbatim into the `KubemqCluster` spec:
 
 ```bash
-helm install kubemq-next kubemq-next/kubemq-next -n kubemq --set licenseKey=<key> \
+helm install messaging kubemq-next/kubemq-next -n kubemq --set cluster.enabled=true --set operator.enabled=false --set fullnameOverride=messaging --set licenseKey=<key> \
   --set replicas=3 --set volume.size=50Gi --set mqtt.enabled=true
 ```
 
@@ -159,8 +185,7 @@ Service, `<cluster>-amqp-mgmt`, which is `ClusterIP` (in-cluster only) whatever 
 use. Publish it deliberately with `--set amqp.management.expose=NodePort` or `LoadBalancer`, and
 only with authentication configured: without it the management API admits any credentials.
 
-Operator only, no cluster: `--set cluster.enabled=false`, then apply your own `next.kubemq.io/v1`
-`KubemqCluster` manifests.
+Operator-only is the default. Cluster releases require `--set cluster.enabled=true --set operator.enabled=false`.
 
 ## External Kafka access
 
@@ -209,15 +234,65 @@ Configure authentication and encryption before exposing Kafka to an untrusted ne
 shows address routing for the plaintext listener. See the
 [Kafka Kubernetes access guide](https://docs.kubemq.io/connectors/kafka/how-to/kubernetes-access).
 
-## Data warning
+## Removal and retained data
 
-Both of these delete the `KubemqCluster` and its pods:
+The cluster object always has `helm.sh/resource-policy: keep`. Uninstalling or disabling a cluster
+release leaves the cluster running. There is no deletion hook and no hook image to download.
+Delete the recorded cluster explicitly, allow the independent operator to finalize it, then uninstall
+only its cluster release. Neither Helm nor a hook can delete a same-named replacement cluster.
 
-- `helm upgrade … --set cluster.enabled=false` on a live release
-- `helm uninstall`
+Before deletion, securely export the customer admin credentials and record the namespace, cluster
+UID, member count, engine, volume identities, and Helm release ownership. The generated admin
+Secret is owned by the cluster and disappears with it; retained server account data is not reset by
+a newly generated Secret. Never use the operator's internal token as a customer credential.
 
-The PersistentVolumeClaims are **kept** in both cases. Delete them yourself when the data is no longer
-needed. `helm uninstall` also leaves the two CRDs in place — Helm never removes CRDs.
+Record and inspect the intended Kubernetes installation and custom resource:
+
+```text
+kubectl --context YOUR_CONTEXT get namespace kube-system -o json
+kubectl --context YOUR_CONTEXT -n kubemq get kubemqclusters.next.kubemq.io messaging -o json
+```
+
+Run the checked-in helper with the recorded `metadata.uid` values and the custom resource's
+`metadata.resourceVersion`. It requires Python 3 and kubectl and works without a shell on macOS,
+Linux and Windows (use `py -3` instead of `python3` on Windows):
+
+```text
+python3 scripts/remove-cluster.py --context YOUR_CONTEXT --namespace kubemq --name messaging --cluster-uid RECORDED_KUBE_SYSTEM_UID --uid RECORDED_CLUSTER_UID --resource-version RECORDED_RESOURCE_VERSION
+kubectl --context YOUR_CONTEXT -n kubemq wait --for=delete kubemqclusters.next.kubemq.io/messaging --timeout=180s
+helm uninstall messaging --kube-context YOUR_CONTEXT -n kubemq
+```
+
+The helper sends Kubernetes `DeleteOptions` with UID and resourceVersion preconditions at the
+actual delete. A concurrent update, replacement, denied permission, or unavailable API fails safely;
+inspect current state before retrying. A lost response is not proof of deletion. If finalization times
+out, restore the operator and permissions and retry observation; never strip finalizers or delete
+volumes as a repair. Retain the operator release while any cluster or connector depends on it.
+The final uninstall above is permitted only after confirming that release owns the retained cluster
+and no shared operator resources. An absent original object with a replacement present requires
+inspection, not deletion of the replacement.
+
+Persistent volumes and custom-resource definitions are retained. Reusing volumes requires the
+same supported membership and engine, preserved identity, and the existing server credentials.
+Destroying data is a separate deliberate operation; no label-wide volume deletion is part of removal.
+
+### Migrating an existing combined release
+
+This is a pre-GA breaking lifecycle change. Do not upgrade a combined release by merely flipping
+`operator.enabled` or `cluster.enabled`: its old stored manifest and deletion hook can still remove
+shared resources or a same-named replacement. Keep the old chart pinned until a reviewed migration
+has recorded every dependent object and retained credential. Before any removal, apply a prepared
+chart revision to that same release that removes its hook and marks its cluster as retained while
+preserving all its existing operator resources. Verify the saved release manifest and hooks. Then
+explicitly delete only the recorded cluster using the helper above and wait for finalization.
+Only when no other clusters/connectors use that operator may the old release be uninstalled.
+Install the new independent releases afterward. Ownership transfer, volume reattachment, and
+retained-account recovery require a separate explicit migration; this chart does not automate them.
+
+Online servers with an old unbound cached lease require one successful activation after upgrading
+to input-bound licensing. This includes the operator's injected lease on a fresh store. Once accepted
+on the same persistent store, the same configured input retains ordinary signed-lease outage behavior.
+Do not delete enforcement or identity records to work around activation refusal.
 
 ## Connectors
 
