@@ -31,7 +31,11 @@ Quick test from a throwaway pod:
 Dashboard:
 
   kubectl port-forward -n {{ $ns }} svc/{{ $name }}-api 8080:8080
-  open http://localhost:8080
+{{- if and .Values.api .Values.api.tlsSecret }}
+  https://localhost:8080 (trust the configured management certificate; do not skip verification)
+{{- else }}
+  http://localhost:8080
+{{- end }}
 
 Note: `kubectl port-forward` to the Kafka service does NOT work for Kafka clients. After the
 first answer the client is sent to each pod's in-cluster address, which your machine cannot
@@ -46,10 +50,11 @@ RabbitMQ management API: Service {{ $name }}-amqp-mgmt, type {{ .Values.amqp.man
 WARNING: no volume is set. All data is lost whenever a pod restarts.
 {{- end }}
 
-`helm uninstall` keeps the PersistentVolumeClaims. A later install with a different shape
-(node count, storage engine) will not start until you delete them:
-
-  kubectl delete pvc -n {{ $ns }} -l app={{ $name }}
+`helm uninstall` retains this cluster and its volumes. First delete the recorded cluster
+UID with the identity-checked removal procedure in the chart README. Keep the independent
+operator release installed until every dependent cluster and connector has been removed.
+Preserve the admin credentials for retained data. Never delete volumes to repair a license
+or membership mismatch.
 {{ else }}
 No cluster was requested (cluster.enabled=false). Create a KubemqCluster object to start one.
 {{ end }}
