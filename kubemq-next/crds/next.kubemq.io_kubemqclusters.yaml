@@ -1153,8 +1153,8 @@ spec:
                   x-kubernetes-validations:
                     - message: "store.engine is immutable once set (born-one-mode); create a new cluster to change engines"
                       rule: "!has(oldSelf.engine) || !has(self.engine) || self.engine == oldSelf.engine"
-                    - message: "store.nextShards can only grow once set: a smaller shard count makes every server refuse to start on its existing volume"
-                      rule: "!has(oldSelf.nextShards) || (has(self.nextShards) && self.nextShards >= oldSelf.nextShards)"
+                    - message: "store.nextShards is fixed when the cluster is created (unset means the server default, 8): every server refuses to start with a different shard count"
+                      rule: "has(oldSelf.nextShards) ? (has(self.nextShards) && self.nextShards == oldSelf.nextShards) : (!has(self.nextShards) || self.nextShards == 8)"
                 telemetry:
                   properties:
                     enable:
