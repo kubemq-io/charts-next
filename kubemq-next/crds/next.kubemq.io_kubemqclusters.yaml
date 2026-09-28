@@ -1136,6 +1136,13 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    nextBalanceLeaders:
+                      type: boolean
+                    nextShards:
+                      format: int32
+                      maximum: 16
+                      minimum: 1
+                      type: integer
                     path:
                       type: string
                     purgeInactiveMinutes:
@@ -1146,6 +1153,8 @@ spec:
                   x-kubernetes-validations:
                     - message: "store.engine is immutable once set (born-one-mode); create a new cluster to change engines"
                       rule: "!has(oldSelf.engine) || !has(self.engine) || self.engine == oldSelf.engine"
+                    - message: "store.nextShards can only grow once set: a smaller shard count makes every server refuse to start on its existing volume"
+                      rule: "!has(oldSelf.nextShards) || (has(self.nextShards) && self.nextShards >= oldSelf.nextShards)"
                 telemetry:
                   properties:
                     enable:

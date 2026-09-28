@@ -56,6 +56,14 @@ volume:
 health:
   enabled: true
 
+# Store settings for the next engine. Shards split the data plane into independent raft groups so
+# every server of the cluster leads a share of them (and of the Kafka partitions they hold). Leave
+# both unset for the server defaults: 8 shards, leadership balanced across the servers.
+# nextShards (1-16) can grow later but never shrink once the cluster holds data.
+# store:
+#   nextShards: 8
+#   nextBalanceLeaders: true
+
 # Install exactly one independently owned operator release per namespace. Cluster
 # releases must set enabled=false and reuse that operator and its shared permissions.
 operator:
