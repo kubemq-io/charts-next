@@ -56,16 +56,24 @@ volume:
 health:
   enabled: true
 
+# Store settings for the next engine. Shards split the data plane into independent raft groups so
+# every server of the cluster leads a share of them (and of the Kafka partitions they hold). Leave
+# both unset for the server defaults: 8 shards, leadership balanced across the servers.
+# nextShards (1-16) is fixed when the cluster is created; it cannot change afterwards.
+# store:
+#   nextShards: 8
+#   nextBalanceLeaders: true
+
 # Install exactly one independently owned operator release per namespace. Cluster
 # releases must set enabled=false and reuse that operator and its shared permissions.
 operator:
   enabled: true
-  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.4.0
+  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.5.0
   pullPolicy: IfNotPresent
   # Default server image for clusters that do not set image.image. Pinned to a version, not
   # :latest, and bumped together with each operator release: a server release can require
   # something only a newer operator sets on its pods, so the two must move in step.
-  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v3.5.0
+  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v3.6.0
   # Default image per connector type, for KubemqConnectors that do not set spec.image. No
   # -next connector image is published yet, so these are empty: set spec.image on every
   # KubemqConnector. A connector with neither fails its reconcile with a clear
