@@ -9,7 +9,7 @@ licenseKeySecretRef:
   name: my-kubemq-license
 replicas: 3
 volume:
-  size: 5Gi
+  size: 50Gi
 api:
   tlsSecret: messaging-management-tls
   expose: ClusterIP

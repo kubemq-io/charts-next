@@ -27,7 +27,9 @@ Require the `Ready` condition at the current custom-resource generation, current
 revision, and the intended durable license adoption on every server, then verify an actual message.
 
 
-The default requests **3 server nodes, each with a 5 GiB volume** (15 GiB total).
+The default requests **3 server nodes, each with a 50 GiB volume** (150 GiB total).
+The default store settings need volumes of this order: a smaller volume reaches the server's
+fixed free-space reserve early and refuses new data well before it is full.
 Set `replicas` before first install. The license can cap the initial count. Once established,
 the member count is permanent: Kubernetes rejects changes to `replicas` for the next storage
 engine. If a changed count reaches the operator through an older schema, it reports
