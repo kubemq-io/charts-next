@@ -40,16 +40,20 @@ cluster:
 # Only operator-managed clusters with at least 3 servers are supported. For a single
 # development server, use Docker. standalone=true is rejected.
 # replica changes; the operator also holds the established count. Choose before first install.
-# The license may cap this initial count. Each server requests its own volume (5Gi by default).
+# The license may cap this initial count. Each server requests its own volume (50Gi by default).
 replicas: 3
 
 # Persistent storage for each server node. The next storage engine keeps its data and the cached
 # license lease on this volume. Without one, every pod restart starts from an empty store: a rolling
 # update of a multi-node cluster restarts each node empty and the cluster may not re-form, and each
 # restart needs a fresh license activation. Size it for your retention.
+# The 50Gi default is what the default store settings need to run as documented, not headroom:
+# with the default shard count a server uses about 1 GiB idle, holds back a fixed reserve of about
+# 1.75 GiB before it refuses new data, and under load keeps about 2 GiB of raft log per active
+# shard plus 15 minutes of retained messages. Changing this value does not resize existing volumes.
 # To run without a volume (throwaway test only): --set volume=null
 volume:
-  size: 5Gi
+  size: 50Gi
 
 # Health / liveness probe. Enabling it also binds the management API to 0.0.0.0 so the
 # dashboard is reachable through the Service and `kubectl port-forward`.
@@ -68,12 +72,12 @@ health:
 # releases must set enabled=false and reuse that operator and its shared permissions.
 operator:
   enabled: true
-  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.5.0
+  image: europe-docker.pkg.dev/kubemq/images/kubemq-operator-next:v3.5.1
   pullPolicy: IfNotPresent
   # Default server image for clusters that do not set image.image. Pinned to a version, not
   # :latest, and bumped together with each operator release: a server release can require
   # something only a newer operator sets on its pods, so the two must move in step.
-  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v3.6.0
+  serverImage: europe-docker.pkg.dev/kubemq/images/kubemq-next:v3.6.16
   # Default image per connector type, for KubemqConnectors that do not set spec.image. No
   # -next connector image is published yet, so these are empty: set spec.image on every
   # KubemqConnector. A connector with neither fails its reconcile with a clear
