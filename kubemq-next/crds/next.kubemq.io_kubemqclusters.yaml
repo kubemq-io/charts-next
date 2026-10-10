@@ -635,6 +635,12 @@ spec:
                       maximum: 65535
                       minimum: 1
                       type: integer
+                    connectionsMaxReauthMs:
+                      description: Kafka connections.max.reauth.ms (CONNECTORS_KAFKA_CONNECTIONS_MAX_REAUTH_MS), the longest SASL session in milliseconds. Unset uses the server default 0, no limit.
+                      format: int64
+                      maximum: 3153600000000
+                      minimum: 0
+                      type: integer
                     defaultUserSecretRef:
                       properties:
                         name:
@@ -666,10 +672,27 @@ spec:
                       maximum: 1073741824
                       minimum: 1
                       type: integer
+                    maxPartitionsPerTopic:
+                      description: Most partitions one topic may have (CONNECTORS_KAFKA_MAX_PARTITIONS_PER_TOPIC). Unset uses the server default 4096.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    metricsMaxLabelledTopics:
+                      description: Most topics given their own label on per-topic metrics (CONNECTORS_KAFKA_METRICS_MAX_LABELLED_TOPICS). Unset uses the server default 1000.
+                      format: int32
+                      maximum: 100000
+                      minimum: 1
+                      type: integer
                     nodePort:
                       format: int32
                       maximum: 32767
                       minimum: 30000
+                      type: integer
+                    offsetMetadataMaxBytes:
+                      description: Kafka offset.metadata.max.bytes (CONNECTORS_KAFKA_OFFSET_METADATA_MAX_BYTES). Unset uses the server default 4096.
+                      format: int32
+                      maximum: 1048576
+                      minimum: 1
                       type: integer
                     peers:
                       type: string
@@ -953,6 +976,38 @@ spec:
                   format: int32
                   minimum: 0
                   type: integer
+                replication:
+                  description: Next-engine raft log retention, snapshot cadence and boot wait (CLUSTER_REPLICATION_*). Unset fields emit nothing and the server defaults apply.
+                  properties:
+                    bootTimeoutSeconds:
+                      description: CLUSTER_REPLICATION_BOOT_TIMEOUT_SECONDS. Server default 60.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    compactionOverhead:
+                      description: Most raft log entries kept past a snapshot (CLUSTER_REPLICATION_COMPACTION_OVERHEAD). Server default 50000.
+                      format: int64
+                      minimum: 1
+                      type: integer
+                    retentionBytes:
+                      description: Raft log bytes kept past a snapshot per shard (CLUSTER_REPLICATION_RETENTION_BYTES). Server default 2147483648; negative turns the byte rule off.
+                      format: int64
+                      type: integer
+                    snapshotBytes:
+                      description: Snapshot after this many applied bytes per shard (CLUSTER_REPLICATION_SNAPSHOT_BYTES). Server default 536870912.
+                      format: int64
+                      minimum: 1
+                      type: integer
+                    snapshotEntries:
+                      description: Snapshot after this many committed entries per shard (CLUSTER_REPLICATION_SNAPSHOT_ENTRIES). Server default 10000.
+                      format: int64
+                      minimum: 1
+                      type: integer
+                    snapshotPinMaxSeconds:
+                      description: How long a leader keeps the log a snapshot-restored member still needs (CLUSTER_REPLICATION_SNAPSHOT_PIN_MAX_SECONDS). Server default 1800; negative turns the pin off.
+                      format: int32
+                      type: integer
+                  type: object
                 resources:
                   properties:
                     limitsCpu:
@@ -1136,6 +1191,9 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    nextAsyncCheckpoint:
+                      description: Checkpoint without pausing publishes on the shard (STORE_NEXT_ASYNC_CHECKPOINT). Unset uses the server default, on; false is the kill switch.
+                      type: boolean
                     nextBalanceLeaders:
                       type: boolean
                     nextShards:
