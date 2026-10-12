@@ -663,6 +663,15 @@ spec:
                         - NodePort
                         - LoadBalancer
                       type: string
+                    logRetentionBytes:
+                      description: Kafka log.retention.bytes (CONNECTORS_KAFKA_LOG_RETENTION_BYTES), the size bound per partition of a topic that sets none of its own. Unset uses the server default -1, no bound; 0 also means no bound.
+                      format: int64
+                      type: integer
+                    logRetentionMs:
+                      description: Kafka log.retention.ms (CONNECTORS_KAFKA_LOG_RETENTION_MS), the age past which records of a topic that sets none of its own are evicted. Unset uses the server default 604800000 (7 days); -1 keeps them forever.
+                      format: int64
+                      minimum: -1
+                      type: integer
                     maxConnections:
                       format: int32
                       minimum: 0
@@ -703,11 +712,18 @@ spec:
                         - None
                         - ClientIP
                       type: string
+                    sslPrincipalMappingRules:
+                      description: Kafka ssl.principal.mapping.rules (CONNECTORS_KAFKA_SSL_PRINCIPAL_MAPPING_RULES), how a verified client certificate's distinguished name becomes the mTLS principal. Unset uses the server default DEFAULT, the full distinguished name.
+                      minLength: 1
+                      type: string
                     tlsNodePort:
                       format: int32
                       maximum: 32767
                       minimum: 30000
                       type: integer
+                    tlsPeers:
+                      description: Per-broker address map for clients on the TLS listener (CONNECTORS_KAFKA_TLS_PEERS), the same id@host:port grammar and ids as peers. Set it with each broker's external TLS address when peers names external addresses; unset, the server derives it from peers. Requires peers.
+                      type: string
                     tlsPort:
                       type: string
                     usersSecretRef:
@@ -764,6 +780,14 @@ spec:
                       minimum: 1
                       type: integer
                   type: object
+                podSecurityContext:
+                  description: The broker pod's securityContext. Unset keeps the operator default fsGroup 200; when set, fsGroup is defaulted to 200 if absent so the data volume stays writable. Ignored when statefulsetConfigData supplies the pod spec.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                securityContext:
+                  description: The kubemq container's securityContext (for example allowPrivilegeEscalation false, capabilities.drop ALL, runAsNonRoot true). Unset renders none. Ignored when statefulsetConfigData supplies the pod spec.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
                 statefulsetConfigData:
                   type: string
                 standalone:
@@ -1007,6 +1031,10 @@ spec:
                       description: How long a leader keeps the log a snapshot-restored member still needs (CLUSTER_REPLICATION_SNAPSHOT_PIN_MAX_SECONDS). Server default 1800; negative turns the pin off.
                       format: int32
                       type: integer
+                    tlsSecret:
+                      description: Same-namespace Secret with ca.crt, tls.crt and tls.key for the raft replication plane. The operator mounts the files and sets CLUSTER_REPLICATION_MUTUAL_TLS with the three file paths on every pod. The certificate must cover each pod's stable DNS name; changing it rolls the cluster.
+                      minLength: 1
+                      type: string
                   type: object
                 resources:
                   properties:
