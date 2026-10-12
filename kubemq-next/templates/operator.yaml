@@ -19,12 +19,23 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      # The operator image runs as the distroless nonroot user (65532); the restricted
+      # profile below is what OpenShift and the restricted Pod Security Standard require.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: kubemq-operator
           image: {{ .Values.operator.image }}
           command:
             - kubemq-operator
           imagePullPolicy: {{ .Values.operator.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8080
           env:

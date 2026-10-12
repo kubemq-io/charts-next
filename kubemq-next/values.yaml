@@ -68,6 +68,42 @@ health:
 #   nextShards: 8
 #   nextBalanceLeaders: true
 
+# Pod and container security contexts for the KubeMQ server pods (operator v3.6.0+, CRD with
+# spec.securityContext / spec.podSecurityContext). Unset keeps the operator default, fsGroup 200.
+# A set podSecurityContext replaces that block; fsGroup is defaulted to 200 when it names none so
+# the data volume stays writable. Both are ignored when statefulsetConfigData supplies the pod spec.
+# The restricted profile OpenShift and the restricted Pod Security Standard require:
+# securityContext:
+#   allowPrivilegeEscalation: false
+#   runAsNonRoot: true
+#   capabilities:
+#     drop: [ALL]
+# podSecurityContext:
+#   seccompProfile:
+#     type: RuntimeDefault
+
+# Kafka over TLS from outside the cluster. peers lists each broker's external plaintext address
+# and tlsPeers each broker's external TLS address (same id@host:port grammar and ids, the ids
+# are the pod ordinal plus one). In-cluster leave both unset: the operator derives per-pod
+# addresses and the server derives the TLS map from them. Retention and mTLS principal
+# mapping follow Kafka's broker defaults (log.retention.ms, log.retention.bytes,
+# ssl.principal.mapping.rules).
+# kafka:
+#   expose: NodePort
+#   peers: 1@node.example.com:31090,2@node.example.com:31091,3@node.example.com:31092
+#   tlsPeers: 1@node.example.com:31190,2@node.example.com:31191,3@node.example.com:31192
+#   logRetentionMs: 604800000
+#   logRetentionBytes: -1
+#   sslPrincipalMappingRules: DEFAULT
+
+# Encrypt and mutually authenticate server-to-server replication (the raft port) with a Secret
+# holding ca.crt, tls.crt and tls.key, for example issued by cert-manager. The certificate must
+# cover each pod's DNS name, <release>-<ordinal>.<release>.<namespace>.svc.cluster.local.
+# Set it at install: turning it on later rolls the cluster, and members cannot replicate
+# across the roll.
+# replication:
+#   tlsSecret: kubemq-raft-tls
+
 # Install exactly one independently owned operator release per namespace. Cluster
 # releases must set enabled=false and reuse that operator and its shared permissions.
 operator:
