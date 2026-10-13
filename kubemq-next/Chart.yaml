@@ -3,7 +3,7 @@ name: kubemq-next
 description: KubeMQ (next line) — operator, CRDs and an optional KubeMQ cluster in one chart
 type: application
 version: 3.7.0
-appVersion: "3.6.16"
+appVersion: "3.6.18"
 maintainers:
   - name: KubeMQ
     email: info@kubemq.io
